@@ -13,6 +13,7 @@ import argparse
 import urllib2
 import xml.dom.minidom
 import yaml                # install PyYAML via pip
+import re
 # github.com/Zimbra-Community/python-zimbra
 from pythonzimbra.tools import auth
 from pythonzimbra.request_json import RequestJson
@@ -30,6 +31,7 @@ request_urn_suffix = {
     'GetAppointment': 'Mail',
     'GetFolder': 'Mail',
     'GetMailboxMetadata': 'Mail',
+    'GetMsg': 'Mail',
     'Search': 'Mail',
 }
 
@@ -102,12 +104,39 @@ class Zimbra():
         info = response.get_response()
         return info
 
+def parse_param(sparam):
+    """ Parse a parameter string into key and value.
+    >>> parse_param("@depth=4")
+    ('depth', '4')
+
+    >>> parse_param("/folder@path=/foobar")
+    ('folder', {'path': '/foobar'})
+
+    >>> parse_param("/query=foo or bar")
+    ('query', {'_content': 'foo or bar'})
+
+    """
+    param_re = re.compile(r'(?:/(\w+))?(?:@(\w+))?=(.+)')
+    m = param_re.match(sparam)
+    if not m:
+        raise Exception("bad parameter: '%s'" % sparam)
+    log.debug("parse_param(%s): %s", sparam, m.groups())
+    element, attribute, value = m.groups()
+    if element:
+        if attribute:
+            return element, {attribute: value}
+        else:
+            return element, {'_content': value}
+    else:
+        return attribute, value
+
 def main():
     parser = argparse.ArgumentParser(description="Make Zimbra SOAP requests")
-    parser.add_argument('request', help='Name of request')
-    parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--account', help='Account name for context')
-    parser.add_argument('--params', help='Parameters of request')
+    parser.add_argument('request', help='Name of request, e.g. GetFolder')
+    parser.add_argument('param', help='Parameter in xpath format. E.g. /folder@path=/testing', nargs='*')
+    parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--account', '-m', help='Account name for context')
+    parser.add_argument('--params', help='Parameters of request in json format')
     parser.add_argument('--urn', help='URN of request: Admin, Account, etc')
     parser.add_argument('--depth', type=int,  default=None, help='Depth of structure prints')
     args = parser.parse_args()
@@ -119,10 +148,21 @@ def main():
 
     context = { 'account': { '_content': args.account, 'by': 'name' } } if args.account else None
     request_name = args.request if args.request.endswith('Request') else args.request + 'Request'
-    params = json.loads(args.params) if args.params else None
+
+    params = json.loads(args.params) if args.params else {}
+    for param in args.param:
+        key, value = parse_param(param)
+        if key in params and isinstance(params[key], dict):
+            params[key].update(value)
+        else:
+            params[key] = value
+
     urn = (args.urn if args.urn.startswith('zimbra') else 'zimbra'+args.urn) if args.urn else None
 
-    pprint.pprint(z.request(request_name, params=params, context=context, urn=urn, args=args), depth=args.depth)
+    info = z.request(request_name, params=params, context=context, urn=urn, args=args)
+
+    # wash the data through YAML just to get readable display
+    print yaml.dump(yaml.load(json.dumps(info)))
 
 if __name__ == "__main__":
     main()
