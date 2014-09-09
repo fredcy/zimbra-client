@@ -26,16 +26,20 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 request_urn_suffix = {
+    'CreateSignature': 'Account',
     'GetInfo': 'Account',
+    'GetSignatures': 'Account',
 
     'GetAppointment': 'Mail',
     'GetFolder': 'Mail',
+    'GetFreeBusy': 'Mail',
     'GetMailboxMetadata': 'Mail',
     'GetMsg': 'Mail',
     'Search': 'Mail',
 }
 
 def urn_for_request(request_name):
+    """ Return the URN for the given request name. """
     if request_name.endswith('Request'):
         request_name = request_name[:-len('Request')]
     return 'zimbra' + request_urn_suffix.get(request_name, 'Admin')
@@ -58,8 +62,12 @@ class Zimbra():
             raise Exception("Authentication failed: locals=%s", locals())
 
     def request(self, request_name, params=None, context=None, urn=None, args={}):
-        request = RequestJson()
-        response = ResponseJson()
+        """ Send a single request to Zimbra. """
+        if args.xml:
+            request, response = RequestXml(), ResponseXml()
+        else:
+            request, response = RequestJson(), ResponseJson()
+
         try:
             if urn == None:
                 urn = urn_for_request(request_name)
@@ -120,7 +128,6 @@ def parse_param(sparam):
     m = param_re.match(sparam)
     if not m:
         raise Exception("bad parameter: '%s'" % sparam)
-    log.debug("parse_param(%s): %s", sparam, m.groups())
     element, attribute, value = m.groups()
     if element:
         if attribute:
@@ -138,7 +145,7 @@ def main():
     parser.add_argument('--account', '-m', help='Account name for context')
     parser.add_argument('--params', help='Parameters of request in json format')
     parser.add_argument('--urn', help='URN of request: Admin, Account, etc')
-    parser.add_argument('--depth', type=int,  default=None, help='Depth of structure prints')
+    parser.add_argument('--xml', action='store_true', help='Use XML format request and response; default is JSON')
     args = parser.parse_args()
 
     log.setLevel(logging.DEBUG if args.debug else logging.INFO)
@@ -149,6 +156,9 @@ def main():
     context = { 'account': { '_content': args.account, 'by': 'name' } } if args.account else None
     request_name = args.request if args.request.endswith('Request') else args.request + 'Request'
 
+    # Collect parameters first from the 'params' option (in json format), then from the positional
+    # parameters ('param') in Xpath format. Only one level of merging is done and so this won't
+    # handle multiple parameter values of more than one shared level.
     params = json.loads(args.params) if args.params else {}
     for param in args.param:
         key, value = parse_param(param)
@@ -161,7 +171,8 @@ def main():
 
     info = z.request(request_name, params=params, context=context, urn=urn, args=args)
 
-    # wash the data through YAML just to get readable display
+    # Wash the data through JSON and then YAML just to get readable display without any
+    #"!!python/unicode" clutter.
     print yaml.dump(yaml.load(json.dumps(info)))
 
 if __name__ == "__main__":
