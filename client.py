@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Zimbra client.
 
 Note: This code sometimes uses yaml rather than json to display JSON values for debugging, only
@@ -14,8 +15,8 @@ import urllib2
 import xml.dom.minidom
 import yaml                # install PyYAML via pip
 import re
-# github.com/Zimbra-Community/python-zimbra
-from pythonzimbra.tools import auth
+
+from pythonzimbra.tools import auth # github.com/Zimbra-Community/python-zimbra
 from pythonzimbra.request_json import RequestJson
 from pythonzimbra.request_xml import RequestXml
 from pythonzimbra.response_json import ResponseJson
