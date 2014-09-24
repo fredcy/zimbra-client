@@ -16,6 +16,8 @@ import xml.dom.minidom
 import yaml                # install PyYAML via pip
 import re
 
+from params import parse_param
+
 from pythonzimbra.tools import auth # github.com/Zimbra-Community/python-zimbra
 from pythonzimbra.request_json import RequestJson
 from pythonzimbra.request_xml import RequestXml
@@ -113,31 +115,6 @@ class Zimbra():
         info = response.get_response()
         return info
 
-def parse_param(sparam):
-    """ Parse a parameter string into key and value.
-    >>> parse_param("@depth=4")
-    ('depth', '4')
-
-    >>> parse_param("/folder@path=/foobar")
-    ('folder', {'path': '/foobar'})
-
-    >>> parse_param("/query=foo or bar")
-    ('query', {'_content': 'foo or bar'})
-
-    """
-    param_re = re.compile(r'(?:/(\w+))?(?:@(\w+))?=(.+)')
-    m = param_re.match(sparam)
-    if not m:
-        raise Exception("bad parameter: '%s'" % sparam)
-    element, attribute, value = m.groups()
-    if element:
-        if attribute:
-            return element, {attribute: value}
-        else:
-            return element, {'_content': value}
-    else:
-        return attribute, value
-
 def main():
     parser = argparse.ArgumentParser(description="Make Zimbra SOAP requests")
     parser.add_argument('request', help='Name of request, e.g. GetFolder')
@@ -145,11 +122,18 @@ def main():
     parser.add_argument('--debug', '-d', action='store_true')
     parser.add_argument('--account', '-m', help='Account name for context')
     parser.add_argument('--params', help='Parameters of request in json format')
+    parser.add_argument('--paramsfile', help='File containing parameters in json format')
     parser.add_argument('--urn', help='URN of request: Admin, Account, etc')
     parser.add_argument('--xml', action='store_true', help='Use XML format request and response; default is JSON')
+    parser.add_argument('--test', action='store_true', help='Run self-tests')
     args = parser.parse_args()
 
     log.setLevel(logging.DEBUG if args.debug else logging.INFO)
+
+    if args.request == "doctest":
+        import doctest, sys
+        doctest.testmod()
+        sys.exit(0)
 
     z = Zimbra()
     z.connect()
@@ -160,13 +144,15 @@ def main():
     # Collect parameters first from the 'params' option (in json format), then from the positional
     # parameters ('param') in Xpath format. Only one level of merging is done and so this won't
     # handle multiple parameter values of more than one shared level.
-    params = json.loads(args.params) if args.params else {}
+    params = {}
+    if args.paramsfile:
+        with file(args.paramsfile) as f:
+            params = json.loads(f.read())
+    if args.params:
+        params2 = json.loads(args.params)
+        params.update(params2)
     for param in args.param:
-        key, value = parse_param(param)
-        if key in params and isinstance(params[key], dict):
-            params[key].update(value)
-        else:
-            params[key] = value
+        params.update(parse_param(param))
 
     urn = (args.urn if args.urn.startswith('zimbra') else 'zimbra'+args.urn) if args.urn else None
 
