@@ -16,7 +16,7 @@ import xml.dom.minidom
 import yaml                # install PyYAML via pip
 import re
 
-from params import parse_param
+from params import parse_param, dmerge
 
 from pythonzimbra.tools import auth # github.com/Zimbra-Community/python-zimbra
 from pythonzimbra.request_json import RequestJson
@@ -110,7 +110,8 @@ class Zimbra():
             log.exception("send_request failed (%s): request=%s", type(e), request.get_request())
             return None
         if response.is_fault():
-            log.error("send_request returned fault: request=%s", request.get_request())
+            log.error("send_request returned fault: request=%s, response=%s",
+                      request.get_request(), response.get_response())
             return None
         info = response.get_response()
         return info
@@ -149,10 +150,9 @@ def main():
         with file(args.paramsfile) as f:
             params = json.loads(f.read())
     if args.params:
-        params2 = json.loads(args.params)
-        params.update(params2)
+        dmerge(params, json.loads(args.params))
     for param in args.param:
-        params.update(parse_param(param))
+        dmerge(params, parse_param(param))
 
     urn = (args.urn if args.urn.startswith('zimbra') else 'zimbra'+args.urn) if args.urn else None
 

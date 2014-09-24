@@ -1,4 +1,5 @@
 import re
+from pprint import pprint
 
 def parse_param(sparam):
     """ Parse a parameter string into dict following Zimbra json conventions.
@@ -13,8 +14,14 @@ def parse_param(sparam):
 
     >>> parse_param("/signature/content=foo bar")
     {'signature': {'content': {'_content': 'foo bar'}}}
+
+    >>> parse_param("@one=foo=bar")
+    {'one': 'foo=bar'}
     """
-    path, value = sparam.split('=')
+    splitpoint = sparam.find("=")
+    if splitpoint == -1:
+        raise Exception("no = found in parameter: %s" % sparam)
+    path, value = sparam[:splitpoint], sparam[splitpoint+1:]
     pathlist = split(path)
     return path_to_dict(pathlist, value)
 
@@ -45,6 +52,25 @@ def split(str):
     split_re = re.compile(r'[/@]\w+')
     parts = split_re.findall(str)
     return parts
+
+def dmerge(d1, d2):
+    """
+    Deep merge two dicts, updating d1 in place.
+    >>> dmerge({'a': 1}, {'b': 2})
+    {'a': 1, 'b': 2}
+    >>> dmerge({'a': {'b': 1}}, {'a': {'b': 2}})
+    {'a': {'b': 2}}
+    >>> pprint(dmerge({'a': {'b': 1}}, {'a': {'c': 2}}))
+    {'a': {'b': 1, 'c': 2}}
+    """
+    assert(isinstance(d1, dict))
+    assert(isinstance(d2, dict))
+    for k, v in d2.items():
+        if k in d1 and isinstance(v, dict):
+            dmerge(d1[k], v)
+        else:
+            d1[k] = v
+    return d1
 
 if __name__ == '__main__':
     import doctest
