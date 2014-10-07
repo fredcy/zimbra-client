@@ -142,9 +142,9 @@ def main():
     context = { 'account': { '_content': args.account, 'by': 'name' } } if args.account else None
     request_name = args.request if args.request.endswith('Request') else args.request + 'Request'
 
-    # Collect parameters first from the 'params' option (in json format), then from the positional
-    # parameters ('param') in Xpath format. Only one level of merging is done and so this won't
-    # handle multiple parameter values of more than one shared level.
+    # Collect parameters first from the paramsfile (json), then from the
+    # 'params' option (in json format), then from the positional parameters
+    # ('param') in Xpath format. Merge in the values recursively.
     params = {}
     if args.paramsfile:
         with file(args.paramsfile) as f:
