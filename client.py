@@ -33,6 +33,7 @@ request_urn_suffix = {
     'GetInfo': 'Account',
     'GetSignatures': 'Account',
 
+    'FolderAction': 'Mail',
     'GetAppointment': 'Mail',
     'GetFolder': 'Mail',
     'GetFreeBusy': 'Mail',
@@ -64,9 +65,9 @@ class Zimbra():
         if not self.token:
             raise Exception("Authentication failed: locals=%s", locals())
 
-    def request(self, request_name, params=None, context=None, urn=None, args={}):
-        """ Send a single request to Zimbra. """
-        if args.xml:
+    def request(self, request_name, params=None, context=None, urn=None, opts={}):
+        """ Send a single request to Zimbra; return the response as native python data. """
+        if opts['xml']:
             request, response = RequestXml(), ResponseXml()
         else:
             request, response = RequestJson(), ResponseJson()
@@ -82,7 +83,7 @@ class Zimbra():
             log.exception("failed to build request: request_name=%s, params=%s, context=%s",
                           request_name, params, context)
             return None
-        if args.debug:
+        if opts['debug']:
             if isinstance(request, RequestXml):
                 print xml.dom.minidom.parseString(request.get_request()).toprettyxml(indent=".   ")
             else:
@@ -155,8 +156,9 @@ def main():
         dmerge(params, parse_param(param))
 
     urn = (args.urn if args.urn.startswith('zimbra') else 'zimbra'+args.urn) if args.urn else None
+    opts = { 'xml': args.xml, 'debug': args.debug }
 
-    info = z.request(request_name, params=params, context=context, urn=urn, args=args)
+    info = z.request(request_name, params=params, context=context, urn=urn, opts=opts)
 
     # Wash the data through JSON and then YAML just to get readable display without any
     #"!!python/unicode" clutter.
