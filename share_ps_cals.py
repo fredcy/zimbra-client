@@ -1,26 +1,15 @@
 #!/usr/bin/env python
 import argparse
 import pprint
-import yaml
-import json
 import client                   # local wrapper for python-zimbra
 import logging
 from itertools import *
 
+import utils
+
 log = logging.getLogger("share_ps_cals")
 log.setLevel(logging.WARN)
 
-def pdump(data):
-    """Return YAML representation of the data, washed through json just to remove
-    all the unicode notations."""
-    return yaml.dump(yaml.load(json.dumps(data)))
-
-def getAllAccounts(z, opts):
-    """ Return a generator of all account names. """
-    response = z.request('GetAllAccountsRequest', opts=opts)
-    if response:
-        for account in response['GetAllAccountsResponse']['account']:
-            yield account['name']
 
 def accountPscal(z, account, opts):
     """ Return the data of the first external PowerSchool calendar found for the account, or None. """
