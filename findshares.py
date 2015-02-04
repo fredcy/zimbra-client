@@ -3,6 +3,7 @@ import client
 import utils
 from itertools import *
 from collections import namedtuple
+import sys
 
 def get_cals(account, opts):
     context = { 'account': { '_content': account, 'by': 'name' }}
@@ -33,16 +34,22 @@ if __name__ == "__main__":
 
     all_cals = imap(lambda a: AccountCals(a, get_cals(a, opts)), accounts)
     # all accounts and each account's calendar folders (the latter structured with subfolders)
+
     linked_cals = imap(lambda item: AccountCals(item.account, list(get_linked_cals(item.cals))), all_cals)
     # all accounts and flat list of accounts linked from others for each
-    ownertest = lambda cal: 'owner' in cal and cal['owner'].startswith('sruksak')
+
+    #ownertest = lambda cal: 'owner' in cal and cal['owner'].startswith('csaha@')
+    ownertest = lambda cal: True
     linked_cals_owner = imap(lambda item: AccountCals(item.account, filter(ownertest, item.cals)), linked_cals)
     # all accounts with linked accounts from specific owner for each
+
     linked_cals_nonempty = ifilter(lambda item: item.cals, linked_cals_owner)
     # only those accounts that have at least one matching linked cal folder
     
-    for item in linked_cals_nonempty:
+    for item in islice(linked_cals_nonempty, 2):
         for cal in item.cals:
             owner = cal.get('owner', '*unknown*')
             # inactive accounts have no 'owner' in links to their calendars
             print "\t".join([item.account, owner, cal['name']])
+            print utils.pdump(cal); sys.exit(1)
+            
