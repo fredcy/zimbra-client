@@ -9,6 +9,9 @@ log = logging.getLogger("showgrants")
 log.setLevel(logging.WARN)
 
 def grantsInFolders(folders):
+    """Traverse the folder tree and return a list of interesting grants. Each item
+    is a tuple of (folderName, grantee, permissions).
+    """
     allgrants = []
     for f in folders:
         if 'acl' in f and 'grant' in f['acl']:
@@ -17,7 +20,8 @@ def grantsInFolders(folders):
                 if 'd' in g:
                     if g['perm'] != 'r':
                         allgrants.append( (f['name'], g['d'], g['perm']) )
-                # else public grant
+                    # else read-only grant; not interesting
+                # else public grant (no explicit grantee d)
         if 'folder' in f:
             subfolders = f['folder']
             allgrants += grantsInFolders(subfolders)
@@ -37,7 +41,7 @@ if __name__ == '__main__':
     z.connect()
 
     opts = { 'xml': False, 'debug': False }
-    accounts = utils.getAllAccounts(z, opts) # :: [string]
+    accounts = utils.getAllRooms(z, opts) # :: [string]
     #accounts = ["fcy@imsa.edu", "rm-a110@imsa.edu"]
 
     for account in accounts:

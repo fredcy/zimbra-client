@@ -67,7 +67,7 @@ class Zimbra():
 
     def request(self, request_name, params=None, context=None, urn=None, opts={}):
         """ Send a single request to Zimbra; return the response as native python data. """
-        if opts['xml']:
+        if 'xml' in opts and opts['xml']:
             request, response = RequestXml(), ResponseXml()
         else:
             request, response = RequestJson(), ResponseJson()
